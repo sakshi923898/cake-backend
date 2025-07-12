@@ -8,12 +8,15 @@ require('dotenv').config();
 const ownerAuthRoutes = require('./routes/ownerAuthRoutes');
 
 const app = express();
+
+// ✅ Allow both Netlify live frontend and local development
 app.use(cors({
-  origin: "https://legendary-sprinkles-9e0733.netlify.app", // Your frontend domain
+  origin: ['https://legendary-sprinkles-9e0733.netlify.app', 'http://localhost:5173'],
   credentials: true
 }));
+
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // serve uploaded images
+app.use('/uploads', express.static('uploads'));
 app.use('/api/owner', ownerAuthRoutes);
 
 // MongoDB connection
@@ -43,7 +46,7 @@ const Order = mongoose.model('Order', new mongoose.Schema({
   status: { type: String, default: 'Pending' },
 }));
 
-// Multer for file upload
+// Multer setup for image upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
@@ -62,7 +65,7 @@ app.get('/api/cakes', async (req, res) => {
   }
 });
 
-// Upload new cake with image
+// Upload new cake
 app.post('/api/cakes', upload.single('image'), async (req, res) => {
   try {
     const { name, price, description } = req.body;
@@ -76,7 +79,7 @@ app.post('/api/cakes', upload.single('image'), async (req, res) => {
   }
 });
 
-// Delete cake by ID
+// Delete cake
 app.delete('/api/cakes/:id', async (req, res) => {
   try {
     const cake = await Cake.findByIdAndDelete(req.params.id);
@@ -110,7 +113,7 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// Confirm order delivery
+// Confirm delivery
 app.patch('/api/orders/:id/confirm', async (req, res) => {
   try {
     const orderId = req.params.id;
