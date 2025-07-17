@@ -2,21 +2,21 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
-const path = require('path');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('./config/cloudinary'); // ✅ Make sure this file exists
 require('dotenv').config();
 
 const ownerAuthRoutes = require('./routes/ownerAuthRoutes');
-const Order = require('./models/Order'); // ✅ Keep only this import
+const Order = require('./models/Order'); // ✅ Make sure model exists
 const app = express();
 
-// ✅ Allow both Netlify live frontend and local development
+// CORS for Netlify and local dev
 app.use(cors({
   origin: ['https://legendary-sprinkles-9e0733.netlify.app', 'http://localhost:5173'],
   credentials: true
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
 app.use('/api/owner', ownerAuthRoutes);
 
 // MongoDB connection
@@ -27,7 +27,7 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('MongoDB connected'))
 .catch(err => console.error(err));
 
-// Models
+// Mongoose Cake model
 const Cake = mongoose.model('Cake', new mongoose.Schema({
   name: String,
   price: Number,
@@ -35,10 +35,13 @@ const Cake = mongoose.model('Cake', new mongoose.Schema({
   imageUrl: String,
 }));
 
-// Multer setup for image upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+// ✅ Cloudinary Storage Setup
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'cake-shop',
+    allowed_formats: ['jpg', 'png', 'jpeg'],
+  },
 });
 const upload = multer({ storage });
 
@@ -58,10 +61,10 @@ app.get('/api/cakes', async (req, res) => {
 app.post('/api/cakes', upload.single('image'), async (req, res) => {
   try {
     const { name, price, description } = req.body;
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const imageUrl = req.file.path; // ✅ Get Cloudinary image URL
     const newCake = new Cake({ name, price, description, imageUrl });
     await newCake.save();
-    res.status(201).json({ message: 'Cake added successfully' });
+    res.status(201).json({ message: 'Cake added successfully', cake: newCake });
   } catch (error) {
     console.error('Error uploading cake:', error);
     res.status(500).json({ message: 'Error uploading cake' });
