@@ -6,7 +6,7 @@ const path = require('path');
 require('dotenv').config();
 
 const ownerAuthRoutes = require('./routes/ownerAuthRoutes');
-
+const Order = require('./models/Order'); // ✅ Keep only this import
 const app = express();
 
 // ✅ Allow both Netlify live frontend and local development
@@ -33,17 +33,6 @@ const Cake = mongoose.model('Cake', new mongoose.Schema({
   price: Number,
   description: String,
   imageUrl: String,
-}));
-
-const Order = mongoose.model('Order', new mongoose.Schema({
-  customerName: String,
-  contact: String,
-  address: String,
-  cakeId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Cake'
-  },
-  status: { type: String, default: 'Pending' },
 }));
 
 // Multer setup for image upload
@@ -116,12 +105,15 @@ app.post('/api/orders', async (req, res) => {
 // Confirm delivery
 app.patch('/api/orders/:id/confirm', async (req, res) => {
   try {
-    const orderId = req.params.id;
-    const updated = await Order.findByIdAndUpdate(orderId, { status: 'Delivered' }, { new: true });
-    res.json({ message: 'Order confirmed', order: updated });
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    order.status = 'Delivered';
+    await order.save();
+    res.status(200).json({ message: 'Order confirmed as delivered' });
   } catch (error) {
-    console.error('Error confirming order:', error);
-    res.status(500).json({ message: 'Failed to confirm order' });
+    console.error('Error confirming delivery:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
